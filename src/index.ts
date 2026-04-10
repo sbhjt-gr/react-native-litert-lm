@@ -44,7 +44,7 @@ export * from "./hooks";
  *
  * @example
  * ```typescript
- * import { createLLM } from 'react-native-litert-lm';
+ * import { createLLM } from '@inferrlm/react-native-litert-lm';
  *
  * // Basic usage with Gemma 3n
  * const llm = createLLM();

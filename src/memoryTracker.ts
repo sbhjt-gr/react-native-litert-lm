@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { createMemoryTracker } from 'react-native-litert-lm';
+ * import { createMemoryTracker } from '@inferrlm/react-native-litert-lm';
  *
  * const tracker = createMemoryTracker(100);
  *

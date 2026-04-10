@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { applyGemmaTemplate, ChatMessage } from 'react-native-litert-lm';
+ * import { applyGemmaTemplate, ChatMessage } from '@inferrlm/react-native-litert-lm';
  *
  * const history: ChatMessage[] = [
  *   { role: 'user', content: 'What is React Native?' },
