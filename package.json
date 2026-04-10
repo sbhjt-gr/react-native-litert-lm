@@ -1,5 +1,5 @@
 {
-  "name": "react-native-litert-lm",
+  "name": "@inferrlm/react-native-litert-lm",
   "version": "0.3.3",
   "litertLm": {
     "version": "0.10.1",
@@ -8,14 +8,14 @@
   },
   "description": "High-performance LLM inference for React Native using LiteRT-LM. Optimized for Gemma 4 and other on-device language models.",
   "license": "MIT",
-  "author": "Hugh Chen (https://github.com/hung-yueh)",
+  "author": "Subhajit Gorai (https://github.com/sbhjt-gr)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hung-yueh/react-native-litert-lm.git"
+    "url": "git+https://github.com/sbhjt-gr/react-native-litert-lm.git"
   },
-  "homepage": "https://github.com/hung-yueh/react-native-litert-lm#readme",
+  "homepage": "https://github.com/sbhjt-gr/react-native-litert-lm#readme",
   "bugs": {
-    "url": "https://github.com/hung-yueh/react-native-litert-lm/issues"
+    "url": "https://github.com/sbhjt-gr/react-native-litert-lm/issues"
   },
   "keywords": [
     "react-native",
