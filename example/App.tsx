@@ -21,7 +21,7 @@ import {
   applyGemmaTemplate,
   createMemoryTracker,
   type ChatMessage,
-} from "react-native-litert-lm";
+} from "@inferrlm/react-native-litert-lm";
 
 // Test asset paths — resolved at runtime from bundled assets
 // On iOS, Metro bundles images into the app; resolveAssetSource gives us a URI.

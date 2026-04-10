@@ -37,7 +37,7 @@ if (Array.isArray(config.resolver.blockList)) {
 
 // Resolve the library's source files and force React resolution
 config.resolver.extraNodeModules = {
-  "react-native-litert-lm": libraryRoot,
+  "@inferrlm/react-native-litert-lm": libraryRoot,
   react: path.resolve(projectRoot, "node_modules/react"),
   "react-native": path.resolve(projectRoot, "node_modules/react-native"),
 };

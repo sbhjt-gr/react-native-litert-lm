@@ -44,7 +44,7 @@ module.exports = {
           }
         }
       ],
-      "react-native-litert-lm"
+      "@inferrlm/react-native-litert-lm"
     ]
   }
 };
