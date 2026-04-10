@@ -3,7 +3,7 @@
  * postinstall.js
  *
  * Downloads prebuilt LiteRT-LM iOS frameworks from this package's GitHub
- * releases when consumers run `npm install react-native-litert-lm`.
+ * releases when consumers run `npm install @inferrlm/react-native-litert-lm`.
  *
  * Skips download if:
  *   - Not on macOS (iOS builds require macOS)
