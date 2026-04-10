@@ -18,7 +18,7 @@ const https = require('https');
 
 const PACKAGE_JSON = require('../package.json');
 const PACKAGE_VERSION = PACKAGE_JSON.version;
-const GITHUB_REPO = 'hung-yueh/react-native-litert-lm';
+const GITHUB_REPO = 'sbhjt-gr/react-native-litert-lm';
 const ASSET_NAME = 'LiteRTLM-ios-frameworks.zip';
 
 const SCRIPT_DIR = __dirname;
@@ -26,7 +26,7 @@ const PACKAGE_ROOT = path.resolve(SCRIPT_DIR, '..');
 const FRAMEWORKS_DIR = path.join(PACKAGE_ROOT, 'ios', 'Frameworks');
 
 function log(msg) {
-  console.log(`[react-native-litert-lm] ${msg}`);
+  console.log(`[@inferrlm/react-native-litert-lm] ${msg}`);
 }
 
 function shouldSkip() {
@@ -59,7 +59,7 @@ function downloadFile(url, destPath, maxRedirects = 5) {
 
     const protocol = url.startsWith('https') ? https : require('http');
 
-    protocol.get(url, { headers: { 'User-Agent': 'react-native-litert-lm' } }, (res) => {
+    protocol.get(url, { headers: { 'User-Agent': '@inferrlm/react-native-litert-lm' } }, (res) => {
       // Follow redirects
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return downloadFile(res.headers.location, destPath, maxRedirects - 1)
