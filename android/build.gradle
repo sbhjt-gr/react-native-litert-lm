@@ -18,7 +18,7 @@ android {
     compileSdk 36
     
     defaultConfig {
-        minSdk 26  // LiteRT-LM requires API 26+
+        minSdk 28  // NitroModules requires API 28+
         
         externalNativeBuild {
             cmake {
