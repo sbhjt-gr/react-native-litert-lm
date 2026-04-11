@@ -2,7 +2,7 @@
  * Expo config plugin for react-native-litert-lm.
  *
  * Ensures correct build settings for the LiteRT-LM native module:
- * - Android: minSdkVersion 26, Kotlin 2.3.0 (required by litertlm-android AAR)
+ * - Android: minSdkVersion 28, Kotlin 2.3.0 (required by litertlm-android AAR)
  */
 const {
   withGradleProperties,
@@ -10,7 +10,7 @@ const {
 } = require('@expo/config-plugins');
 
 function withLiteRTLM(config) {
-  // Android: Ensure minSdkVersion is at least 26
+  // Android: Ensure minSdkVersion is at least 28
   config = withGradleProperties(config, (config) => {
     const props = config.modResults;
 
@@ -20,10 +20,10 @@ function withLiteRTLM(config) {
       props.push({
         type: 'property',
         key: 'android.minSdkVersion',
-        value: '26',
+        value: '28',
       });
-    } else if (parseInt(minSdkProp.value, 10) < 26) {
-      minSdkProp.value = '26';
+    } else if (parseInt(minSdkProp.value, 10) < 28) {
+      minSdkProp.value = '28';
     }
 
     return config;
