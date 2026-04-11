@@ -90,7 +90,7 @@ else
   exit 1
 fi
 
-BAZEL_VERSION=$($BAZEL --version 2>&1 | head -1)
+BAZEL_VERSION=$($BAZEL --version 2>&1)
 echo "   Using: $BAZEL ($BAZEL_VERSION)"
 
 # ---- 3. Build the C engine static library for iOS -------------------------
