@@ -16,6 +16,7 @@ def litertLmVersion = packageJson.litertLm.androidMavenVersion
 android {
     namespace "dev.litert.litertlm"
     compileSdk 36
+    ndkVersion "27.1.12297006"
     
     defaultConfig {
         minSdk 28  // NitroModules requires API 28+
