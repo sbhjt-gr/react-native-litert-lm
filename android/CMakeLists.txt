@@ -21,6 +21,11 @@ add_library(
 # available at runtime.
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
 
+target_link_options(LiteRTLM PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384"
+)
+
 # Include Nitrogen autolinking - this adds all generated sources and links
 include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/LiteRTLM+autolinking.cmake)
 
