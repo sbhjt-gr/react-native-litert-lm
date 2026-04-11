@@ -45,6 +45,7 @@
     "android/CMakeLists.txt",
     "ios/*.mm",
     "ios/*.m",
+    "ios/Frameworks",
     "cpp",
     "nitrogen/generated",
     "scripts/postinstall.js",
