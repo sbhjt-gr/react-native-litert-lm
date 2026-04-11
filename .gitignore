@@ -15,8 +15,7 @@ ios/build/
 ios/Pods/
 *.xcworkspace
 
-# Nitrogen generated (can be regenerated)
-nitrogen/generated/
+# Nitrogen generated files are committed (needed for file: dependencies)
 
 # IDE
 .idea/
