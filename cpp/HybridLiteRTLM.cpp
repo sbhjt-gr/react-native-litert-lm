@@ -71,41 +71,175 @@ static void runOnLargeStack(std::function<void()> work, size_t stackSize = 8 * 1
 }
 
 #ifdef __APPLE__
-struct BenchmarkApi {
-  using GetInfoFn = LiteRtLmBenchmarkInfo* (*)(LiteRtLmConversation*);
+struct LiteRtApi {
+  using NewSessionConfigCreateFn = LiteRtLmSessionConfig* (*)();
+  using OldSessionConfigCreateFn = LiteRtLmSessionConfig* (*)(const LiteRtLmSamplerParams*);
+  using SessionConfigSetMaxOutputTokensFn = void (*)(LiteRtLmSessionConfig*, int);
+  using SessionConfigSetSamplerParamsFn = void (*)(LiteRtLmSessionConfig*, const LiteRtLmSamplerParams*);
+  using ConversationConfigCreateFn = LiteRtLmConversationConfig* (*)(LiteRtLmEngine*, const LiteRtLmSessionConfig*, const char*, const char*, const char*, bool);
+  using ConversationConfigDeleteFn = void (*)(LiteRtLmConversationConfig*);
+  using NewConversationCreateFn = LiteRtLmConversation* (*)(LiteRtLmEngine*, LiteRtLmConversationConfig*);
+  using OldConversationCreateFn = LiteRtLmConversation* (*)(LiteRtLmEngine*);
+  using NewSendMessageFn = LiteRtLmJsonResponse* (*)(LiteRtLmConversation*, const char*, const char*);
+  using OldSendMessageFn = LiteRtLmJsonResponse* (*)(LiteRtLmConversation*, const char*);
+  using NewSendMessageStreamFn = int (*)(LiteRtLmConversation*, const char*, const char*, LiteRtLmStreamCallback, void*);
+  using OldSendMessageStreamFn = int (*)(LiteRtLmConversation*, const char*, LiteRtLmStreamCallback, void*);
+  using GetBenchmarkInfoFn = LiteRtLmBenchmarkInfo* (*)(LiteRtLmConversation*);
   using GetNumDecodeTurnsFn = int (*)(const LiteRtLmBenchmarkInfo*);
   using GetDecodeTokensPerSecAtFn = double (*)(const LiteRtLmBenchmarkInfo*, int);
   using GetDecodeTokenCountAtFn = int (*)(const LiteRtLmBenchmarkInfo*, int);
   using GetTimeToFirstTokenFn = double (*)(const LiteRtLmBenchmarkInfo*);
-  using DeleteFn = void (*)(LiteRtLmBenchmarkInfo*);
+  using DeleteBenchmarkInfoFn = void (*)(LiteRtLmBenchmarkInfo*);
 
-  GetInfoFn getInfo;
+  NewSessionConfigCreateFn createSessionConfigNew;
+  OldSessionConfigCreateFn createSessionConfigOld;
+  SessionConfigSetMaxOutputTokensFn setMaxOutputTokens;
+  SessionConfigSetSamplerParamsFn setSamplerParams;
+  ConversationConfigCreateFn createConversationConfig;
+  ConversationConfigDeleteFn deleteConversationConfig;
+  NewConversationCreateFn createConversationNew;
+  OldConversationCreateFn createConversationOld;
+  NewSendMessageFn sendMessageNew;
+  OldSendMessageFn sendMessageOld;
+  NewSendMessageStreamFn sendMessageStreamNew;
+  OldSendMessageStreamFn sendMessageStreamOld;
+  GetBenchmarkInfoFn getBenchmarkInfo;
   GetNumDecodeTurnsFn getNumDecodeTurns;
   GetDecodeTokensPerSecAtFn getDecodeTokensPerSecAt;
   GetDecodeTokenCountAtFn getDecodeTokenCountAt;
   GetTimeToFirstTokenFn getTimeToFirstToken;
-  DeleteFn deleteInfo;
+  DeleteBenchmarkInfoFn deleteBenchmarkInfo;
 
-  bool isAvailable() const {
-    return getInfo != nullptr &&
+  bool hasModernSessionApi() const {
+    return setMaxOutputTokens != nullptr && setSamplerParams != nullptr;
+  }
+
+  bool hasModernConversationApi() const {
+    return createConversationConfig != nullptr &&
+           deleteConversationConfig != nullptr &&
+           createConversationNew != nullptr;
+  }
+
+  bool hasBenchmarkApi() const {
+    return getBenchmarkInfo != nullptr &&
            getNumDecodeTurns != nullptr &&
            getDecodeTokensPerSecAt != nullptr &&
            getDecodeTokenCountAt != nullptr &&
            getTimeToFirstToken != nullptr &&
-           deleteInfo != nullptr;
+           deleteBenchmarkInfo != nullptr;
   }
 };
 
-static const BenchmarkApi& getBenchmarkApi() {
-  static const BenchmarkApi api{
-    reinterpret_cast<BenchmarkApi::GetInfoFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_get_benchmark_info")),
-    reinterpret_cast<BenchmarkApi::GetNumDecodeTurnsFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_num_decode_turns")),
-    reinterpret_cast<BenchmarkApi::GetDecodeTokensPerSecAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_tokens_per_sec_at")),
-    reinterpret_cast<BenchmarkApi::GetDecodeTokenCountAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_token_count_at")),
-    reinterpret_cast<BenchmarkApi::GetTimeToFirstTokenFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_time_to_first_token")),
-    reinterpret_cast<BenchmarkApi::DeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_delete")),
+static const LiteRtApi& getLiteRtApi() {
+  static const LiteRtApi api{
+    reinterpret_cast<LiteRtApi::NewSessionConfigCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_create")),
+    reinterpret_cast<LiteRtApi::OldSessionConfigCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_create")),
+    reinterpret_cast<LiteRtApi::SessionConfigSetMaxOutputTokensFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_set_max_output_tokens")),
+    reinterpret_cast<LiteRtApi::SessionConfigSetSamplerParamsFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_set_sampler_params")),
+    reinterpret_cast<LiteRtApi::ConversationConfigCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_config_create")),
+    reinterpret_cast<LiteRtApi::ConversationConfigDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_config_delete")),
+    reinterpret_cast<LiteRtApi::NewConversationCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_create")),
+    reinterpret_cast<LiteRtApi::OldConversationCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_create")),
+    reinterpret_cast<LiteRtApi::NewSendMessageFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_send_message")),
+    reinterpret_cast<LiteRtApi::OldSendMessageFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_send_message")),
+    reinterpret_cast<LiteRtApi::NewSendMessageStreamFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_send_message_stream")),
+    reinterpret_cast<LiteRtApi::OldSendMessageStreamFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_send_message_stream")),
+    reinterpret_cast<LiteRtApi::GetBenchmarkInfoFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_get_benchmark_info")),
+    reinterpret_cast<LiteRtApi::GetNumDecodeTurnsFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_num_decode_turns")),
+    reinterpret_cast<LiteRtApi::GetDecodeTokensPerSecAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_tokens_per_sec_at")),
+    reinterpret_cast<LiteRtApi::GetDecodeTokenCountAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_token_count_at")),
+    reinterpret_cast<LiteRtApi::GetTimeToFirstTokenFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_time_to_first_token")),
+    reinterpret_cast<LiteRtApi::DeleteBenchmarkInfoFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_delete")),
   };
   return api;
+}
+
+static LiteRtLmSessionConfig* createSessionConfigCompat(const LiteRtLmSamplerParams& sampler, int maxTokens) {
+  const auto& api = getLiteRtApi();
+  if (api.hasModernSessionApi()) {
+    auto* config = api.createSessionConfigNew ? api.createSessionConfigNew() : nullptr;
+    if (!config) {
+      return nullptr;
+    }
+    api.setMaxOutputTokens(config, maxTokens);
+    api.setSamplerParams(config, &sampler);
+    return config;
+  }
+  return api.createSessionConfigOld ? api.createSessionConfigOld(&sampler) : nullptr;
+}
+
+static void deleteConversationConfigCompat(LiteRtLmConversationConfig* config) {
+  if (!config) {
+    return;
+  }
+  const auto& api = getLiteRtApi();
+  if (api.deleteConversationConfig) {
+    api.deleteConversationConfig(config);
+  }
+}
+
+static LiteRtLmConversation* createConversationCompat(
+    LiteRtLmEngine* engine,
+    LiteRtLmSessionConfig* sessionConfig,
+    const char* systemMessageJson,
+    LiteRtLmConversationConfig** outConfig) {
+  if (outConfig) {
+    *outConfig = nullptr;
+  }
+
+  const auto& api = getLiteRtApi();
+  if (api.hasModernConversationApi()) {
+    auto* config = api.createConversationConfig(
+      engine,
+      sessionConfig,
+      systemMessageJson,
+      nullptr,
+      nullptr,
+      false
+    );
+    if (!config) {
+      return nullptr;
+    }
+
+    auto* conversation = api.createConversationNew(engine, config);
+    if (!conversation) {
+      api.deleteConversationConfig(config);
+      return nullptr;
+    }
+
+    if (outConfig) {
+      *outConfig = config;
+    }
+    return conversation;
+  }
+
+  return api.createConversationOld ? api.createConversationOld(engine) : nullptr;
+}
+
+static LiteRtLmJsonResponse* sendConversationMessageCompat(
+    LiteRtLmConversation* conversation,
+    const std::string& messageJson) {
+  const auto& api = getLiteRtApi();
+  if (api.hasModernConversationApi()) {
+    return api.sendMessageNew ? api.sendMessageNew(conversation, messageJson.c_str(), nullptr) : nullptr;
+  }
+  return api.sendMessageOld ? api.sendMessageOld(conversation, messageJson.c_str()) : nullptr;
+}
+
+static int sendConversationMessageStreamCompat(
+    LiteRtLmConversation* conversation,
+    const std::string& messageJson,
+    LiteRtLmStreamCallback callback,
+    void* callbackData) {
+  const auto& api = getLiteRtApi();
+  if (api.hasModernConversationApi()) {
+    return api.sendMessageStreamNew
+      ? api.sendMessageStreamNew(conversation, messageJson.c_str(), nullptr, callback, callbackData)
+      : -1;
+  }
+  return api.sendMessageStreamOld
+    ? api.sendMessageStreamOld(conversation, messageJson.c_str(), callback, callbackData)
+    : -1;
 }
 #endif
 
@@ -255,7 +389,7 @@ void HybridLiteRTLM::createNewConversation() {
     conversation_ = nullptr;
   }
   if (conv_config_) {
-    litert_lm_conversation_config_delete(conv_config_);
+    deleteConversationConfigCompat(conv_config_);
     conv_config_ = nullptr;
   }
   
@@ -268,23 +402,13 @@ void HybridLiteRTLM::createNewConversation() {
   }
   
   // Create conversation config with session config
-  conv_config_ = litert_lm_conversation_config_create(
+  conversation_ = createConversationCompat(
     engine_,
-    session_config_,  // may be nullptr for defaults
-    systemMsgPtr,     // system message
-    nullptr,          // tools (not used yet)
-    nullptr,          // messages history
-    false             // constrained decoding
+    session_config_,
+    systemMsgPtr,
+    &conv_config_
   );
-  if (!conv_config_) {
-    throw std::runtime_error("Failed to create conversation config");
-  }
-  
-  // Create conversation
-  conversation_ = litert_lm_conversation_create(engine_, conv_config_);
   if (!conversation_) {
-    litert_lm_conversation_config_delete(conv_config_);
-    conv_config_ = nullptr;
     throw std::runtime_error("Failed to create conversation");
   }
 #endif
@@ -418,18 +542,14 @@ void HybridLiteRTLM::loadModelInternal(
       std::string(primaryBackend) + "' and CPU fallback. Model path: " + modelPath + diag);
   }
   
-  session_config_ = litert_lm_session_config_create();
-  if (session_config_) {
-    litert_lm_session_config_set_max_output_tokens(session_config_, static_cast<int>(maxTokens_));
-    
-    LiteRtLmSamplerParams sampler{};
-    sampler.type = kTopP;
-    sampler.top_k = static_cast<int32_t>(topK_);
-    sampler.top_p = static_cast<float>(topP_);
-    sampler.temperature = static_cast<float>(temperature_);
-    sampler.seed = 0;
-    litert_lm_session_config_set_sampler_params(session_config_, &sampler);
-  }
+  LiteRtLmSamplerParams sampler{};
+  sampler.type = kTopP;
+  sampler.top_k = static_cast<int32_t>(topK_);
+  sampler.top_p = static_cast<float>(topP_);
+  sampler.temperature = static_cast<float>(temperature_);
+  sampler.seed = 0;
+
+  session_config_ = createSessionConfigCompat(sampler, static_cast<int>(maxTokens_));
   
   createNewConversation();
 #endif
@@ -461,10 +581,13 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
   std::string result;
   
 #ifdef __APPLE__
-  std::string msgJson = buildTextMessageJson(message);
+  std::string promptText = message;
+  if (!getLiteRtApi().hasModernConversationApi() && !systemPrompt_.empty() && history_.empty()) {
+    promptText = systemPrompt_ + "\n\n" + message;
+  }
+  std::string msgJson = buildTextMessageJson(promptText);
   
-  auto* response = litert_lm_conversation_send_message(
-    conversation_, msgJson.c_str(), nullptr);
+  auto* response = sendConversationMessageCompat(conversation_, msgJson);
   
   if (!response) {
     throw std::runtime_error("LiteRT-LM: sendMessage failed");
@@ -476,19 +599,19 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
   }
   litert_lm_json_response_delete(response);
   
-  const auto& benchmarkApi = getBenchmarkApi();
-  if (benchmarkApi.isAvailable()) {
-    auto* benchInfo = benchmarkApi.getInfo(conversation_);
+  const auto& api = getLiteRtApi();
+  if (api.hasBenchmarkApi()) {
+    auto* benchInfo = api.getBenchmarkInfo(conversation_);
     if (benchInfo) {
-      int numDecodeTurns = benchmarkApi.getNumDecodeTurns(benchInfo);
+      int numDecodeTurns = api.getNumDecodeTurns(benchInfo);
       if (numDecodeTurns > 0) {
         int lastIdx = numDecodeTurns - 1;
-        lastStats_.tokensPerSecond = benchmarkApi.getDecodeTokensPerSecAt(benchInfo, lastIdx);
+        lastStats_.tokensPerSecond = api.getDecodeTokensPerSecAt(benchInfo, lastIdx);
         lastStats_.completionTokens = static_cast<double>(
-          benchmarkApi.getDecodeTokenCountAt(benchInfo, lastIdx));
+          api.getDecodeTokenCountAt(benchInfo, lastIdx));
       }
-      lastStats_.timeToFirstToken = benchmarkApi.getTimeToFirstToken(benchInfo);
-      benchmarkApi.deleteInfo(benchInfo);
+      lastStats_.timeToFirstToken = api.getTimeToFirstToken(benchInfo);
+      api.deleteBenchmarkInfo(benchInfo);
     }
   }
 #else
@@ -579,7 +702,11 @@ void HybridLiteRTLM::sendMessageAsync(
 #ifdef __APPLE__
   ensureLoaded();
   
-  std::string msgJson = buildTextMessageJson(messageCopy);
+  std::string promptText = messageCopy;
+  if (!getLiteRtApi().hasModernConversationApi() && !systemPrompt_.empty() && history_.empty()) {
+    promptText = systemPrompt_ + "\n\n" + messageCopy;
+  }
+  std::string msgJson = buildTextMessageJson(promptText);
   
   // Release ownership — the C callback now owns the context via raw pointer.
   // streamCallbackFn will delete it when done or on error.
@@ -588,9 +715,8 @@ void HybridLiteRTLM::sendMessageAsync(
   // Wrap the initial engine call in runOnLargeStack for consistency
   // with all other engine entry points (XNNPack needs >512KB stack).
   runOnLargeStack([&]() {
-    int result = litert_lm_conversation_send_message_stream(
-      conversation_, msgJson.c_str(), nullptr,
-      streamCallbackFn, ctx);
+    int result = sendConversationMessageStreamCompat(
+      conversation_, msgJson, streamCallbackFn, ctx);
     
     if (result != 0) {
       delete ctx;
@@ -639,10 +765,13 @@ std::string HybridLiteRTLM::sendMessageWithImageInternal(
   imageFile.close();
   
   // Build multimodal message JSON — the C API handles image preprocessing
-  std::string msgJson = buildImageMessageJson(message, imagePath);
+  std::string promptText = message;
+  if (!getLiteRtApi().hasModernConversationApi() && !systemPrompt_.empty() && history_.empty()) {
+    promptText = systemPrompt_ + "\n\n" + message;
+  }
+  std::string msgJson = buildImageMessageJson(promptText, imagePath);
   
-  auto* response = litert_lm_conversation_send_message(
-    conversation_, msgJson.c_str(), nullptr);
+  auto* response = sendConversationMessageCompat(conversation_, msgJson);
   
   if (!response) {
     std::string errMsg = "LiteRT-LM: sendMessageWithImage failed";
@@ -704,10 +833,13 @@ std::string HybridLiteRTLM::sendMessageWithAudioInternal(
   }
   audioFile.close();
   
-  std::string msgJson = buildAudioMessageJson(message, audioPath);
+  std::string promptText = message;
+  if (!getLiteRtApi().hasModernConversationApi() && !systemPrompt_.empty() && history_.empty()) {
+    promptText = systemPrompt_ + "\n\n" + message;
+  }
+  std::string msgJson = buildAudioMessageJson(promptText, audioPath);
   
-  auto* response = litert_lm_conversation_send_message(
-    conversation_, msgJson.c_str(), nullptr);
+  auto* response = sendConversationMessageCompat(conversation_, msgJson);
   
   if (!response) {
     std::string errMsg = "LiteRT-LM: sendMessageWithAudio failed";
@@ -877,7 +1009,7 @@ void HybridLiteRTLM::close() {
     conversation_ = nullptr;
   }
   if (conv_config_) {
-    litert_lm_conversation_config_delete(conv_config_);
+    deleteConversationConfigCompat(conv_config_);
     conv_config_ = nullptr;
   }
   if (session_config_) {
