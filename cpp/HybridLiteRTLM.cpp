@@ -23,6 +23,7 @@
 
 #ifdef __APPLE__
 #include "IOSDownloadHelper.h"
+#include <dlfcn.h>
 #include <os/proc.h>
 #endif
 #include <fstream>
@@ -68,6 +69,45 @@ static void runOnLargeStack(std::function<void()> work, size_t stackSize = 8 * 1
     std::rethrow_exception(ctx.exception);
   }
 }
+
+#ifdef __APPLE__
+struct BenchmarkApi {
+  using GetInfoFn = LiteRtLmBenchmarkInfo* (*)(LiteRtLmConversation*);
+  using GetNumDecodeTurnsFn = int (*)(const LiteRtLmBenchmarkInfo*);
+  using GetDecodeTokensPerSecAtFn = double (*)(const LiteRtLmBenchmarkInfo*, int);
+  using GetDecodeTokenCountAtFn = int (*)(const LiteRtLmBenchmarkInfo*, int);
+  using GetTimeToFirstTokenFn = double (*)(const LiteRtLmBenchmarkInfo*);
+  using DeleteFn = void (*)(LiteRtLmBenchmarkInfo*);
+
+  GetInfoFn getInfo;
+  GetNumDecodeTurnsFn getNumDecodeTurns;
+  GetDecodeTokensPerSecAtFn getDecodeTokensPerSecAt;
+  GetDecodeTokenCountAtFn getDecodeTokenCountAt;
+  GetTimeToFirstTokenFn getTimeToFirstToken;
+  DeleteFn deleteInfo;
+
+  bool isAvailable() const {
+    return getInfo != nullptr &&
+           getNumDecodeTurns != nullptr &&
+           getDecodeTokensPerSecAt != nullptr &&
+           getDecodeTokenCountAt != nullptr &&
+           getTimeToFirstToken != nullptr &&
+           deleteInfo != nullptr;
+  }
+};
+
+static const BenchmarkApi& getBenchmarkApi() {
+  static const BenchmarkApi api{
+    reinterpret_cast<BenchmarkApi::GetInfoFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_get_benchmark_info")),
+    reinterpret_cast<BenchmarkApi::GetNumDecodeTurnsFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_num_decode_turns")),
+    reinterpret_cast<BenchmarkApi::GetDecodeTokensPerSecAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_tokens_per_sec_at")),
+    reinterpret_cast<BenchmarkApi::GetDecodeTokenCountAtFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_decode_token_count_at")),
+    reinterpret_cast<BenchmarkApi::GetTimeToFirstTokenFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_get_time_to_first_token")),
+    reinterpret_cast<BenchmarkApi::DeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_delete")),
+  };
+  return api;
+}
+#endif
 
 // =============================================================================
 // JSON Helpers
@@ -436,17 +476,20 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
   }
   litert_lm_json_response_delete(response);
   
-  auto* benchInfo = litert_lm_conversation_get_benchmark_info(conversation_);
-  if (benchInfo) {
-    int numDecodeTurns = litert_lm_benchmark_info_get_num_decode_turns(benchInfo);
-    if (numDecodeTurns > 0) {
-      int lastIdx = numDecodeTurns - 1;
-      lastStats_.tokensPerSecond = litert_lm_benchmark_info_get_decode_tokens_per_sec_at(benchInfo, lastIdx);
-      lastStats_.completionTokens = static_cast<double>(
-        litert_lm_benchmark_info_get_decode_token_count_at(benchInfo, lastIdx));
+  const auto& benchmarkApi = getBenchmarkApi();
+  if (benchmarkApi.isAvailable()) {
+    auto* benchInfo = benchmarkApi.getInfo(conversation_);
+    if (benchInfo) {
+      int numDecodeTurns = benchmarkApi.getNumDecodeTurns(benchInfo);
+      if (numDecodeTurns > 0) {
+        int lastIdx = numDecodeTurns - 1;
+        lastStats_.tokensPerSecond = benchmarkApi.getDecodeTokensPerSecAt(benchInfo, lastIdx);
+        lastStats_.completionTokens = static_cast<double>(
+          benchmarkApi.getDecodeTokenCountAt(benchInfo, lastIdx));
+      }
+      lastStats_.timeToFirstToken = benchmarkApi.getTimeToFirstToken(benchInfo);
+      benchmarkApi.deleteInfo(benchInfo);
     }
-    lastStats_.timeToFirstToken = litert_lm_benchmark_info_get_time_to_first_token(benchInfo);
-    litert_lm_benchmark_info_delete(benchInfo);
   }
 #else
   // Non-Apple stub
