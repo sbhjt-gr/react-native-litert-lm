@@ -72,6 +72,19 @@ static void runOnLargeStack(std::function<void()> work, size_t stackSize = 8 * 1
 
 #ifdef __APPLE__
 struct LiteRtApi {
+  using SetMinLogLevelFn = void (*)(int);
+  using EngineSettingsCreateFn = LiteRtLmEngineSettings* (*)(const char*, const char*, const char*, const char*);
+  using EngineSettingsDeleteFn = void (*)(LiteRtLmEngineSettings*);
+  using EngineSettingsSetMaxNumTokensFn = void (*)(LiteRtLmEngineSettings*, int);
+  using EngineSettingsEnableBenchmarkFn = void (*)(LiteRtLmEngineSettings*);
+  using EngineSettingsSetCacheDirFn = void (*)(LiteRtLmEngineSettings*, const char*);
+  using EngineCreateFn = LiteRtLmEngine* (*)(LiteRtLmEngineSettings*);
+  using EngineDeleteFn = void (*)(LiteRtLmEngine*);
+  using GetLastErrorFn = const char* (*)();
+  using JsonResponseGetStringFn = const char* (*)(const LiteRtLmJsonResponse*);
+  using JsonResponseDeleteFn = void (*)(LiteRtLmJsonResponse*);
+  using ConversationDeleteFn = void (*)(LiteRtLmConversation*);
+  using SessionConfigDeleteFn = void (*)(LiteRtLmSessionConfig*);
   using NewSessionConfigCreateFn = LiteRtLmSessionConfig* (*)();
   using OldSessionConfigCreateFn = LiteRtLmSessionConfig* (*)(const LiteRtLmSamplerParams*);
   using SessionConfigSetMaxOutputTokensFn = void (*)(LiteRtLmSessionConfig*, int);
@@ -91,6 +104,19 @@ struct LiteRtApi {
   using GetTimeToFirstTokenFn = double (*)(const LiteRtLmBenchmarkInfo*);
   using DeleteBenchmarkInfoFn = void (*)(LiteRtLmBenchmarkInfo*);
 
+  SetMinLogLevelFn setMinLogLevel;
+  EngineSettingsCreateFn createEngineSettings;
+  EngineSettingsDeleteFn deleteEngineSettings;
+  EngineSettingsSetMaxNumTokensFn setEngineMaxTokens;
+  EngineSettingsEnableBenchmarkFn enableEngineBenchmark;
+  EngineSettingsSetCacheDirFn setEngineCacheDir;
+  EngineCreateFn createEngine;
+  EngineDeleteFn deleteEngine;
+  GetLastErrorFn getLastError;
+  JsonResponseGetStringFn getJsonResponseString;
+  JsonResponseDeleteFn deleteJsonResponse;
+  ConversationDeleteFn deleteConversation;
+  SessionConfigDeleteFn deleteSessionConfig;
   NewSessionConfigCreateFn createSessionConfigNew;
   OldSessionConfigCreateFn createSessionConfigOld;
   SessionConfigSetMaxOutputTokensFn setMaxOutputTokens;
@@ -132,6 +158,19 @@ struct LiteRtApi {
 
 static const LiteRtApi& getLiteRtApi() {
   static const LiteRtApi api{
+    reinterpret_cast<LiteRtApi::SetMinLogLevelFn>(dlsym(RTLD_DEFAULT, "litert_lm_set_min_log_level")),
+    reinterpret_cast<LiteRtApi::EngineSettingsCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_settings_create")),
+    reinterpret_cast<LiteRtApi::EngineSettingsDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_settings_delete")),
+    reinterpret_cast<LiteRtApi::EngineSettingsSetMaxNumTokensFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_settings_set_max_num_tokens")),
+    reinterpret_cast<LiteRtApi::EngineSettingsEnableBenchmarkFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_settings_enable_benchmark")),
+    reinterpret_cast<LiteRtApi::EngineSettingsSetCacheDirFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_settings_set_cache_dir")),
+    reinterpret_cast<LiteRtApi::EngineCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_create")),
+    reinterpret_cast<LiteRtApi::EngineDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_engine_delete")),
+    reinterpret_cast<LiteRtApi::GetLastErrorFn>(dlsym(RTLD_DEFAULT, "litert_lm_get_last_error")),
+    reinterpret_cast<LiteRtApi::JsonResponseGetStringFn>(dlsym(RTLD_DEFAULT, "litert_lm_json_response_get_string")),
+    reinterpret_cast<LiteRtApi::JsonResponseDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_json_response_delete")),
+    reinterpret_cast<LiteRtApi::ConversationDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_conversation_delete")),
+    reinterpret_cast<LiteRtApi::SessionConfigDeleteFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_delete")),
     reinterpret_cast<LiteRtApi::NewSessionConfigCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_create")),
     reinterpret_cast<LiteRtApi::OldSessionConfigCreateFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_create")),
     reinterpret_cast<LiteRtApi::SessionConfigSetMaxOutputTokensFn>(dlsym(RTLD_DEFAULT, "litert_lm_session_config_set_max_output_tokens")),
@@ -152,6 +191,88 @@ static const LiteRtApi& getLiteRtApi() {
     reinterpret_cast<LiteRtApi::DeleteBenchmarkInfoFn>(dlsym(RTLD_DEFAULT, "litert_lm_benchmark_info_delete")),
   };
   return api;
+}
+
+static void setMinLogLevelCompat(int level) {
+  const auto& api = getLiteRtApi();
+  if (api.setMinLogLevel) {
+    api.setMinLogLevel(level);
+  }
+}
+
+static LiteRtLmEngineSettings* createEngineSettingsCompat(
+    const char* modelPath,
+    const char* backend,
+    const char* visionBackend,
+    const char* audioBackend) {
+  const auto& api = getLiteRtApi();
+  return api.createEngineSettings
+    ? api.createEngineSettings(modelPath, backend, visionBackend, audioBackend)
+    : nullptr;
+}
+
+static void deleteEngineSettingsCompat(LiteRtLmEngineSettings* settings) {
+  const auto& api = getLiteRtApi();
+  if (settings && api.deleteEngineSettings) {
+    api.deleteEngineSettings(settings);
+  }
+}
+
+static void setEngineMaxTokensCompat(LiteRtLmEngineSettings* settings, int maxTokens) {
+  const auto& api = getLiteRtApi();
+  if (settings && api.setEngineMaxTokens) {
+    api.setEngineMaxTokens(settings, maxTokens);
+  }
+}
+
+static void enableEngineBenchmarkCompat(LiteRtLmEngineSettings* settings) {
+  const auto& api = getLiteRtApi();
+  if (settings && api.enableEngineBenchmark) {
+    api.enableEngineBenchmark(settings);
+  }
+}
+
+static void setEngineCacheDirCompat(LiteRtLmEngineSettings* settings, const char* cacheDir) {
+  const auto& api = getLiteRtApi();
+  if (settings && cacheDir && api.setEngineCacheDir) {
+    api.setEngineCacheDir(settings, cacheDir);
+  }
+}
+
+static LiteRtLmEngine* createEngineCompat(LiteRtLmEngineSettings* settings) {
+  const auto& api = getLiteRtApi();
+  return api.createEngine ? api.createEngine(settings) : nullptr;
+}
+
+static void deleteEngineCompat(LiteRtLmEngine* engine) {
+  const auto& api = getLiteRtApi();
+  if (engine && api.deleteEngine) {
+    api.deleteEngine(engine);
+  }
+}
+
+static const char* getLastErrorCompat() {
+  const auto& api = getLiteRtApi();
+  return api.getLastError ? api.getLastError() : nullptr;
+}
+
+static const char* getJsonResponseStringCompat(const LiteRtLmJsonResponse* response) {
+  const auto& api = getLiteRtApi();
+  return api.getJsonResponseString ? api.getJsonResponseString(response) : nullptr;
+}
+
+static void deleteJsonResponseCompat(LiteRtLmJsonResponse* response) {
+  const auto& api = getLiteRtApi();
+  if (response && api.deleteJsonResponse) {
+    api.deleteJsonResponse(response);
+  }
+}
+
+static void deleteConversationCompat(LiteRtLmConversation* conversation) {
+  const auto& api = getLiteRtApi();
+  if (conversation && api.deleteConversation) {
+    api.deleteConversation(conversation);
+  }
 }
 
 static LiteRtLmSessionConfig* createSessionConfigCompat(const LiteRtLmSamplerParams& sampler, int maxTokens) {
@@ -175,6 +296,13 @@ static void deleteConversationConfigCompat(LiteRtLmConversationConfig* config) {
   const auto& api = getLiteRtApi();
   if (api.deleteConversationConfig) {
     api.deleteConversationConfig(config);
+  }
+}
+
+static void deleteSessionConfigCompat(LiteRtLmSessionConfig* config) {
+  const auto& api = getLiteRtApi();
+  if (config && api.deleteSessionConfig) {
+    api.deleteSessionConfig(config);
   }
 }
 
@@ -385,7 +513,7 @@ void HybridLiteRTLM::createNewConversation() {
   
   // Clean up previous conversation
   if (conversation_) {
-    litert_lm_conversation_delete(conversation_);
+    deleteConversationCompat(conversation_);
     conversation_ = nullptr;
   }
   if (conv_config_) {
@@ -461,7 +589,7 @@ void HybridLiteRTLM::loadModelInternal(
   
 #ifdef __APPLE__
   // Set log verbosity: 2=WARNING (production), 0=INFO (debug)
-  litert_lm_set_min_log_level(2);
+  setMinLogLevelCompat(2);
 
   auto backendStr = [](Backend b) -> const char* {
     switch (b) {
@@ -472,7 +600,7 @@ void HybridLiteRTLM::loadModelInternal(
   };
   
   auto tryCreateEngine = [&](const char* backend, const char* visionBackend) -> bool {
-    auto* settings = litert_lm_engine_settings_create(
+    auto* settings = createEngineSettingsCompat(
       modelPath.c_str(),
       backend,
       visionBackend,
@@ -482,15 +610,15 @@ void HybridLiteRTLM::loadModelInternal(
       return false;
     }
     
-    litert_lm_engine_settings_set_max_num_tokens(settings, static_cast<int>(maxTokens_));
-    litert_lm_engine_settings_enable_benchmark(settings);
+    setEngineMaxTokensCompat(settings, static_cast<int>(maxTokens_));
+    enableEngineBenchmarkCompat(settings);
     
     // Set cache directory to the same directory as the model file
     std::string cacheDir = modelPath.substr(0, modelPath.find_last_of('/'));
-    litert_lm_engine_settings_set_cache_dir(settings, cacheDir.c_str());
+    setEngineCacheDirCompat(settings, cacheDir.c_str());
     
-    engine_ = litert_lm_engine_create(settings);
-    litert_lm_engine_settings_delete(settings);
+    engine_ = createEngineCompat(settings);
+    deleteEngineSettingsCompat(settings);
     
     return engine_ != nullptr;
   };
@@ -532,7 +660,7 @@ void HybridLiteRTLM::loadModelInternal(
     }
     
     // Get the native error from the C API
-    const char* nativeErr = litert_lm_get_last_error();
+    const char* nativeErr = getLastErrorCompat();
     if (nativeErr && nativeErr[0] != '\0') {
       diag += " | Native error: " + std::string(nativeErr);
     }
@@ -593,11 +721,11 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
     throw std::runtime_error("LiteRT-LM: sendMessage failed");
   }
   
-  const char* responseStr = litert_lm_json_response_get_string(response);
+  const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
     result = extractTextFromResponse(std::string(responseStr));
   }
-  litert_lm_json_response_delete(response);
+  deleteJsonResponseCompat(response);
   
   const auto& api = getLiteRtApi();
   if (api.hasBenchmarkApi()) {
@@ -775,18 +903,18 @@ std::string HybridLiteRTLM::sendMessageWithImageInternal(
   
   if (!response) {
     std::string errMsg = "LiteRT-LM: sendMessageWithImage failed";
-    const char* nativeErr = litert_lm_get_last_error();
+    const char* nativeErr = getLastErrorCompat();
     if (nativeErr && nativeErr[0] != '\0') {
       errMsg += ": " + std::string(nativeErr);
     }
     throw std::runtime_error(errMsg);
   }
   
-  const char* responseStr = litert_lm_json_response_get_string(response);
+  const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
     result = extractTextFromResponse(std::string(responseStr));
   }
-  litert_lm_json_response_delete(response);
+  deleteJsonResponseCompat(response);
 #else
   result = "[iOS only] Vision inference not available on this platform.";
 #endif
@@ -843,18 +971,18 @@ std::string HybridLiteRTLM::sendMessageWithAudioInternal(
   
   if (!response) {
     std::string errMsg = "LiteRT-LM: sendMessageWithAudio failed";
-    const char* nativeErr = litert_lm_get_last_error();
+    const char* nativeErr = getLastErrorCompat();
     if (nativeErr && nativeErr[0] != '\0') {
       errMsg += ": " + std::string(nativeErr);
     }
     throw std::runtime_error(errMsg);
   }
   
-  const char* responseStr = litert_lm_json_response_get_string(response);
+  const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
     result = extractTextFromResponse(std::string(responseStr));
   }
-  litert_lm_json_response_delete(response);
+  deleteJsonResponseCompat(response);
 #else
   result = "[iOS only] Audio inference not available on this platform.";
 #endif
@@ -1005,7 +1133,7 @@ void HybridLiteRTLM::close() {
   
 #ifdef __APPLE__
   if (conversation_) {
-    litert_lm_conversation_delete(conversation_);
+    deleteConversationCompat(conversation_);
     conversation_ = nullptr;
   }
   if (conv_config_) {
@@ -1013,11 +1141,11 @@ void HybridLiteRTLM::close() {
     conv_config_ = nullptr;
   }
   if (session_config_) {
-    litert_lm_session_config_delete(session_config_);
+    deleteSessionConfigCompat(session_config_);
     session_config_ = nullptr;
   }
   if (engine_) {
-    litert_lm_engine_delete(engine_);
+    deleteEngineCompat(engine_);
     engine_ = nullptr;
   }
 #endif
