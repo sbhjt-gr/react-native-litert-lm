@@ -239,48 +239,8 @@ class HybridLiteRTLM : HybridLiteRTLMSpec() {
     // sendMessage - Helper for one-shot generation (internally uses Async)
     // -------------------------------------------------------------------------
     override fun sendMessage(message: String): Promise<String> {
-        // Implement Promise-based sendMessage using suspend coroutine logic wrapped in Promise
-        // Since Promise.parallel expects a blocking block returning T, 
-        // and sendMessageAsync is callback-based, we need to bridge them.
-        // HOWEVER, we can just use the synchronous `sendMessage` API of the SDK 
-        // inside the `Promise.parallel` block, which moves it off the main thread!
         return Promise.parallel {
-            ensureLoaded()
-
-            // Add user message to history
-            history.add(Message(Role.USER, message))
-            Log.i(TAG, "sendMessage (Promise): $message")
-            
-            // Blocking inference (safe here because we are in Promise.parallel worker thread)
-            val userMsg = LiteRTMessage.of(text = message)
-            val startTime = System.nanoTime()
-            val responseMsg = conversation!!.sendMessage(message = userMsg)
-            val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
-            
-            // Extract text
-            val response = responseMsg.contents.contents
-                .filterIsInstance<com.google.ai.edge.litertlm.Content.Text>()
-                .joinToString("") { it.text } 
-            
-            // Add model response to history
-            history.add(Message(Role.MODEL, response))
-            
-            // Update stats with real timing data
-            // Token count heuristic: LiteRT-LM Android SDK does not expose
-            // actual token counts from inference. We approximate using
-            // ~4 chars/token. iOS uses the C API benchmark info for real counts.
-            val promptTokens = message.length / 4.0
-            val completionTokens = response.length / 4.0
-            lastStats = GenerationStats(
-                promptTokens = promptTokens,
-                completionTokens = completionTokens,
-                totalTokens = promptTokens + completionTokens,
-                timeToFirstToken = 0.0, // Not available from sync API
-                totalTime = elapsedMs,
-                tokensPerSecond = if (elapsedMs > 0) completionTokens / (elapsedMs / 1000.0) else 0.0
-            )
-            
-            response // Return the string
+            runTextTurn(message)
         }
     }
 
@@ -314,6 +274,45 @@ class HybridLiteRTLM : HybridLiteRTLMSpec() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initiate async generation", e)
             onToken("Error: ${e.message}", true)
+        }
+    }
+
+    override fun runBenchmark(prompt: String, warmupRuns: Double, benchmarkRuns: Double): Promise<Array<GenerationStats>> {
+        return Promise.parallel {
+            ensureLoaded()
+
+            val warmups = warmupRuns.toInt().coerceAtLeast(0)
+            val measuredRuns = benchmarkRuns.toInt().coerceAtLeast(0)
+            if (prompt.isBlank()) {
+                throw RuntimeException("LiteRTLM: Benchmark prompt cannot be empty")
+            }
+            if (measuredRuns == 0) {
+                throw RuntimeException("LiteRTLM: benchmarkRuns must be greater than zero")
+            }
+
+            try {
+                resetConversation()
+
+                repeat(warmups) {
+                    runTextTurn(prompt)
+                    resetConversation()
+                }
+
+                val samples = ArrayList<GenerationStats>(measuredRuns)
+                repeat(measuredRuns) {
+                    runTextTurn(prompt)
+                    samples.add(lastStats.copy())
+                    resetConversation()
+                }
+
+                samples.toTypedArray()
+            } catch (e: Exception) {
+                try {
+                    resetConversation()
+                } catch (_: Exception) {
+                }
+                throw e
+            }
         }
     }
 
@@ -638,6 +637,37 @@ class HybridLiteRTLM : HybridLiteRTLMSpec() {
         if (engine == null) {
             throw RuntimeException("LiteRTLM: No model loaded. Call loadModel() first.")
         }
+    }
+
+    private fun runTextTurn(message: String): String {
+        ensureLoaded()
+
+        history.add(Message(Role.USER, message))
+        Log.i(TAG, "sendMessage (Promise): $message")
+
+        val userMsg = LiteRTMessage.of(text = message)
+        val startTime = System.nanoTime()
+        val responseMsg = conversation!!.sendMessage(message = userMsg)
+        val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
+
+        val response = responseMsg.contents.contents
+            .filterIsInstance<com.google.ai.edge.litertlm.Content.Text>()
+            .joinToString("") { it.text }
+
+        history.add(Message(Role.MODEL, response))
+
+        val promptTokens = message.length / 4.0
+        val completionTokens = response.length / 4.0
+        lastStats = GenerationStats(
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            totalTokens = promptTokens + completionTokens,
+            timeToFirstToken = 0.0,
+            totalTime = elapsedMs,
+            tokensPerSecond = if (elapsedMs > 0) completionTokens / (elapsedMs / 1000.0) else 0.0
+        )
+
+        return response
     }
 
     private fun createNewConversation() {

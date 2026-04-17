@@ -81,6 +81,12 @@ public:
     const std::string& message,
     const std::function<void(const std::string&, bool)>& onToken
   ) override;
+
+  std::shared_ptr<Promise<std::vector<GenerationStats>>> runBenchmark(
+    const std::string& prompt,
+    double warmupRuns,
+    double benchmarkRuns
+  ) override;
   
   std::vector<Message> getHistory() override;
   

@@ -199,6 +199,20 @@ export interface LiteRTLM extends HybridObject<{
   ): void;
 
   /**
+   * Run one or more dedicated benchmark turns against the loaded model.
+   * Each measured run starts from a fresh conversation state.
+   * @param prompt Benchmark prompt text.
+   * @param warmupRuns Number of warmup iterations to discard.
+   * @param benchmarkRuns Number of measured iterations to return.
+   * @returns Per-run generation statistics for the measured iterations.
+   */
+  runBenchmark(
+    prompt: string,
+    warmupRuns: number,
+    benchmarkRuns: number,
+  ): Promise<GenerationStats[]>;
+
+  /**
    * Get the current conversation history.
    * @returns Array of messages in the conversation.
    */

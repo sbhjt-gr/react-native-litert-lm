@@ -863,6 +863,54 @@ void HybridLiteRTLM::sendMessageAsync(
 }
 
 // =============================================================================
+// runBenchmark — Dedicated benchmark turns with fresh conversation state
+// =============================================================================
+
+std::shared_ptr<Promise<std::vector<GenerationStats>>> HybridLiteRTLM::runBenchmark(
+    const std::string& prompt,
+    double warmupRuns,
+    double benchmarkRuns) {
+  return Promise<std::vector<GenerationStats>>::async([this, prompt, warmupRuns, benchmarkRuns]() {
+    std::vector<GenerationStats> samples;
+
+    runOnLargeStack([&]() {
+      const int warmups = std::max(0, static_cast<int>(warmupRuns));
+      const int measuredRuns = std::max(0, static_cast<int>(benchmarkRuns));
+
+      if (prompt.empty()) {
+        throw std::runtime_error("LiteRT-LM: Benchmark prompt cannot be empty.");
+      }
+      if (measuredRuns == 0) {
+        throw std::runtime_error("LiteRT-LM: benchmarkRuns must be greater than zero.");
+      }
+
+      try {
+        resetConversation();
+        for (int index = 0; index < warmups; index += 1) {
+          sendMessageInternal(prompt);
+          resetConversation();
+        }
+
+        samples.reserve(static_cast<size_t>(measuredRuns));
+        for (int index = 0; index < measuredRuns; index += 1) {
+          sendMessageInternal(prompt);
+          samples.push_back(getStats());
+          resetConversation();
+        }
+      } catch (...) {
+        try {
+          resetConversation();
+        } catch (...) {
+        }
+        throw;
+      }
+    });
+
+    return samples;
+  });
+}
+
+// =============================================================================
 // sendMessageWithImage — Multimodal (vision)
 // =============================================================================
 

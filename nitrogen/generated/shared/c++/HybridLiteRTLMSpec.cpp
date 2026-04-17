@@ -21,6 +21,7 @@ namespace margelo::nitro::litertlm {
       prototype.registerHybridMethod("deleteModel", &HybridLiteRTLMSpec::deleteModel);
       prototype.registerHybridMethod("sendMessageWithAudio", &HybridLiteRTLMSpec::sendMessageWithAudio);
       prototype.registerHybridMethod("sendMessageAsync", &HybridLiteRTLMSpec::sendMessageAsync);
+      prototype.registerHybridMethod("runBenchmark", &HybridLiteRTLMSpec::runBenchmark);
       prototype.registerHybridMethod("getHistory", &HybridLiteRTLMSpec::getHistory);
       prototype.registerHybridMethod("resetConversation", &HybridLiteRTLMSpec::resetConversation);
       prototype.registerHybridMethod("isReady", &HybridLiteRTLMSpec::isReady);
