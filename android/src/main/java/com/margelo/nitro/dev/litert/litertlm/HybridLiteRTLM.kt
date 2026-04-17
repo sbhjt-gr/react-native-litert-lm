@@ -42,12 +42,21 @@ internal class StreamingCallbackListener(
     private val onToken: (String, Boolean) -> Unit,
     private val responseBuilder: StringBuilder,
     private val history: MutableList<Message>,
+    private val prompt: String,
+    private val onStats: (GenerationStats) -> Unit,
+    private val startedAtNanos: Long,
 ) : com.google.ai.edge.litertlm.MessageCallback {
+
+    private var firstTokenElapsedMs: Double? = null
 
     override fun onMessage(responseMsg: com.google.ai.edge.litertlm.Message) {
         val chunk = responseMsg.contents.contents
             .filterIsInstance<com.google.ai.edge.litertlm.Content.Text>()
             .joinToString("") { it.text }
+
+        if (chunk.isNotEmpty() && firstTokenElapsedMs == null) {
+            firstTokenElapsedMs = (System.nanoTime() - startedAtNanos) / 1_000_000.0
+        }
 
         onToken(chunk, false)
 
@@ -59,6 +68,21 @@ internal class StreamingCallbackListener(
     override fun onDone() {
         onToken("", true)
         val fullResponse = responseBuilder.toString()
+        val totalTimeMs = (System.nanoTime() - startedAtNanos) / 1_000_000.0
+        val promptTokens = prompt.length / 4.0
+        val completionTokens = fullResponse.length / 4.0
+
+        onStats(
+            GenerationStats(
+                promptTokens = promptTokens,
+                completionTokens = completionTokens,
+                totalTokens = promptTokens + completionTokens,
+                timeToFirstToken = firstTokenElapsedMs ?: 0.0,
+                totalTime = totalTimeMs,
+                tokensPerSecond = if (totalTimeMs > 0) completionTokens / (totalTimeMs / 1000.0) else 0.0,
+            )
+        )
+
         history.add(Message(Role.MODEL, fullResponse))
         Log.d("StreamingCallbackListener", "Streaming done. Length: ${fullResponse.length}")
     }
@@ -279,6 +303,9 @@ class HybridLiteRTLM : HybridLiteRTLMSpec() {
             onToken = onToken,
             responseBuilder = fullResponseBuilder,
             history = history,
+            prompt = message,
+            onStats = { stats -> lastStats = stats },
+            startedAtNanos = System.nanoTime(),
         )
 
         try {

@@ -749,7 +749,9 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
   
   auto endTime = std::chrono::steady_clock::now();
   double latencyMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-  lastStats_.totalTime = latencyMs / 1000.0;
+  lastStats_.promptTokens = std::max(static_cast<double>(promptText.size()) / 4.0, 1.0);
+  lastStats_.totalTokens = lastStats_.promptTokens + lastStats_.completionTokens;
+  lastStats_.totalTime = latencyMs;
   
   // Update history
   history_.push_back(Message{Role::USER, message});
@@ -779,9 +781,11 @@ void HybridLiteRTLM::streamCallbackFn(void* callback_data, const char* chunk,
     double durationMs = std::chrono::duration<double, std::milli>(endTime - ctx->startTime).count();
     
     if (ctx->lastStats && ctx->tokenCount > 0) {
-      ctx->lastStats->completionTokens = static_cast<double>(ctx->tokenCount);
-      ctx->lastStats->totalTime = durationMs / 1000.0;
-      ctx->lastStats->tokensPerSecond = (ctx->tokenCount / durationMs) * 1000.0;
+      ctx->lastStats->promptTokens = std::max(static_cast<double>(ctx->userMessage.size()) / 4.0, 1.0);
+      ctx->lastStats->completionTokens = std::max(static_cast<double>(ctx->fullResponse.size()) / 4.0, 1.0);
+      ctx->lastStats->totalTokens = ctx->lastStats->promptTokens + ctx->lastStats->completionTokens;
+      ctx->lastStats->totalTime = durationMs;
+      ctx->lastStats->tokensPerSecond = (ctx->lastStats->completionTokens / durationMs) * 1000.0;
     }
     
     // Update history (thread-safe)
@@ -920,7 +924,7 @@ std::string HybridLiteRTLM::sendMessageWithImageInternal(
 #endif
   
   auto endTime = std::chrono::steady_clock::now();
-  lastStats_.totalTime = std::chrono::duration<double>(endTime - startTime).count();
+  lastStats_.totalTime = std::chrono::duration<double, std::milli>(endTime - startTime).count();
   
   history_.push_back(Message{Role::USER, message + " [image: " + imagePath + "]"});
   history_.push_back(Message{Role::MODEL, result});
@@ -988,7 +992,7 @@ std::string HybridLiteRTLM::sendMessageWithAudioInternal(
 #endif
   
   auto endTime = std::chrono::steady_clock::now();
-  lastStats_.totalTime = std::chrono::duration<double>(endTime - startTime).count();
+  lastStats_.totalTime = std::chrono::duration<double, std::milli>(endTime - startTime).count();
   
   history_.push_back(Message{Role::USER, message + " [audio: " + audioPath + "]"});
   history_.push_back(Message{Role::MODEL, result});
