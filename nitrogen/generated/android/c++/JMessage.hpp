@@ -23,7 +23,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JMessage final: public jni::JavaClass<JMessage> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Message;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Message;";
 
   public:
     /**

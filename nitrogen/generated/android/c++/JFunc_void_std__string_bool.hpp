@@ -24,7 +24,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JFunc_void_std__string_bool: public jni::JavaClass<JFunc_void_std__string_bool> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_std__string_bool;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_std__string_bool;";
 
   public:
     /**
@@ -60,7 +60,7 @@ namespace margelo::nitro::litertlm {
     }
 
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_std__string_bool_cxx;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_std__string_bool_cxx;";
     static void registerNatives() {
       registerHybrid({makeNativeMethod("invoke_cxx", JFunc_void_std__string_bool_cxx::invoke_cxx)});
     }

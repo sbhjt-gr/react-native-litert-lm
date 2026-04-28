@@ -12,7 +12,10 @@
   },
   "autolinking": {
     "LiteRTLM": {
-      "kotlin": "HybridLiteRTLM"
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridLiteRTLM"
+      }
     }
   },
   "ignorePaths": ["**/node_modules"]

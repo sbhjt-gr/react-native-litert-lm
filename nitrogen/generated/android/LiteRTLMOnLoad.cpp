@@ -18,7 +18,6 @@
 #include "JHybridLiteRTLMSpec.hpp"
 #include "JFunc_void_double.hpp"
 #include "JFunc_void_std__string_bool.hpp"
-#include <NitroModules/DefaultConstructableObject.hpp>
 
 namespace margelo::nitro::litertlm {
 
@@ -28,14 +27,7 @@ int initialize(JavaVM* vm) {
   });
 }
 
-struct JHybridLiteRTLMSpecImpl: public jni::JavaClass<JHybridLiteRTLMSpecImpl, JHybridLiteRTLMSpec::JavaPart> {
-  static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/HybridLiteRTLM;";
-  static std::shared_ptr<JHybridLiteRTLMSpec> create() {
-    static const auto constructorFn = javaClassStatic()->getConstructor<JHybridLiteRTLMSpecImpl::javaobject()>();
-    jni::local_ref<JHybridLiteRTLMSpec::JavaPart> javaPart = javaClassStatic()->newObject(constructorFn);
-    return javaPart->getJHybridLiteRTLMSpec();
-  }
-};
+
 
 void registerAllNatives() {
   using namespace margelo::nitro;
@@ -47,12 +39,7 @@ void registerAllNatives() {
   margelo::nitro::litertlm::JFunc_void_std__string_bool_cxx::registerNatives();
 
   // Register Nitro Hybrid Objects
-  HybridObjectRegistry::registerHybridObjectConstructor(
-    "LiteRTLM",
-    []() -> std::shared_ptr<HybridObject> {
-      return JHybridLiteRTLMSpecImpl::create();
-    }
-  );
+  
 }
 
 } // namespace margelo::nitro::litertlm

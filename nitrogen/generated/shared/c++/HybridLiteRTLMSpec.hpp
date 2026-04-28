@@ -15,10 +15,10 @@
 
 // Forward declaration of `LLMConfig` to properly resolve imports.
 namespace margelo::nitro::litertlm { struct LLMConfig; }
-// Forward declaration of `Message` to properly resolve imports.
-namespace margelo::nitro::litertlm { struct Message; }
 // Forward declaration of `GenerationStats` to properly resolve imports.
 namespace margelo::nitro::litertlm { struct GenerationStats; }
+// Forward declaration of `Message` to properly resolve imports.
+namespace margelo::nitro::litertlm { struct Message; }
 // Forward declaration of `MemoryUsage` to properly resolve imports.
 namespace margelo::nitro::litertlm { struct MemoryUsage; }
 
@@ -27,9 +27,9 @@ namespace margelo::nitro::litertlm { struct MemoryUsage; }
 #include "LLMConfig.hpp"
 #include <optional>
 #include <functional>
-#include "Message.hpp"
-#include <vector>
 #include "GenerationStats.hpp"
+#include <vector>
+#include "Message.hpp"
 #include "MemoryUsage.hpp"
 
 namespace margelo::nitro::litertlm {

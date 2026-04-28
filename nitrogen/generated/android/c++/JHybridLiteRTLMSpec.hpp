@@ -21,11 +21,11 @@ namespace margelo::nitro::litertlm {
   class JHybridLiteRTLMSpec: public virtual HybridLiteRTLMSpec, public virtual JHybridObject {
   public:
     struct JavaPart: public jni::JavaClass<JavaPart, JHybridObject::JavaPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/HybridLiteRTLMSpec;";
+      static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/HybridLiteRTLMSpec;";
       std::shared_ptr<JHybridLiteRTLMSpec> getJHybridLiteRTLMSpec();
     };
     struct CxxPart: public jni::HybridClass<CxxPart, JHybridObject::CxxPart> {
-      static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/HybridLiteRTLMSpec$CxxPart;";
+      static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/HybridLiteRTLMSpec$CxxPart;";
       static jni::local_ref<jhybriddata> initHybrid(jni::alias_ref<jhybridobject> jThis);
       static void registerNatives();
       using HybridBase::HybridBase;
@@ -61,6 +61,7 @@ namespace margelo::nitro::litertlm {
     std::shared_ptr<Promise<void>> deleteModel(const std::string& fileName) override;
     std::shared_ptr<Promise<std::string>> sendMessageWithAudio(const std::string& message, const std::string& audioPath) override;
     void sendMessageAsync(const std::string& message, const std::function<void(const std::string& /* token */, bool /* done */)>& onToken) override;
+    std::shared_ptr<Promise<std::vector<GenerationStats>>> runBenchmark(const std::string& prompt, double warmupRuns, double benchmarkRuns) override;
     std::vector<Message> getHistory() override;
     void resetConversation() override;
     bool isReady() override;

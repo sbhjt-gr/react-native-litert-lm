@@ -23,7 +23,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JFunc_void_double: public jni::JavaClass<JFunc_void_double> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_double;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_double;";
 
   public:
     /**
@@ -59,7 +59,7 @@ namespace margelo::nitro::litertlm {
     }
 
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_double_cxx;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Func_void_double_cxx;";
     static void registerNatives() {
       registerHybrid({makeNativeMethod("invoke_cxx", JFunc_void_double_cxx::invoke_cxx)});
     }

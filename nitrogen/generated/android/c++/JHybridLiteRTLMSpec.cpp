@@ -7,12 +7,12 @@
 
 #include "JHybridLiteRTLMSpec.hpp"
 
+// Forward declaration of `GenerationStats` to properly resolve imports.
+namespace margelo::nitro::litertlm { struct GenerationStats; }
 // Forward declaration of `Message` to properly resolve imports.
 namespace margelo::nitro::litertlm { struct Message; }
 // Forward declaration of `Role` to properly resolve imports.
 namespace margelo::nitro::litertlm { enum class Role; }
-// Forward declaration of `GenerationStats` to properly resolve imports.
-namespace margelo::nitro::litertlm { struct GenerationStats; }
 // Forward declaration of `MemoryUsage` to properly resolve imports.
 namespace margelo::nitro::litertlm { struct MemoryUsage; }
 // Forward declaration of `LLMConfig` to properly resolve imports.
@@ -24,13 +24,13 @@ namespace margelo::nitro::litertlm { enum class Backend; }
 #include <NitroModules/JPromise.hpp>
 #include <NitroModules/JUnit.hpp>
 #include <string>
-#include "Message.hpp"
+#include "GenerationStats.hpp"
 #include <vector>
+#include "JGenerationStats.hpp"
+#include "Message.hpp"
 #include "JMessage.hpp"
 #include "Role.hpp"
 #include "JRole.hpp"
-#include "GenerationStats.hpp"
-#include "JGenerationStats.hpp"
 #include "MemoryUsage.hpp"
 #include "JMemoryUsage.hpp"
 #include "LLMConfig.hpp"
@@ -173,6 +173,31 @@ namespace margelo::nitro::litertlm {
   void JHybridLiteRTLMSpec::sendMessageAsync(const std::string& message, const std::function<void(const std::string& /* token */, bool /* done */)>& onToken) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* message */, jni::alias_ref<JFunc_void_std__string_bool::javaobject> /* onToken */)>("sendMessageAsync_cxx");
     method(_javaPart, jni::make_jstring(message), JFunc_void_std__string_bool_cxx::fromCpp(onToken));
+  }
+  std::shared_ptr<Promise<std::vector<GenerationStats>>> JHybridLiteRTLMSpec::runBenchmark(const std::string& prompt, double warmupRuns, double benchmarkRuns) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* prompt */, double /* warmupRuns */, double /* benchmarkRuns */)>("runBenchmark");
+    auto __result = method(_javaPart, jni::make_jstring(prompt), warmupRuns, benchmarkRuns);
+    return [&]() {
+      auto __promise = Promise<std::vector<GenerationStats>>::create();
+      __result->cthis()->addOnResolvedListener([=](const jni::alias_ref<jni::JObject>& __boxedResult) {
+        auto __result = jni::static_ref_cast<jni::JArrayClass<JGenerationStats>>(__boxedResult);
+        __promise->resolve([&]() {
+          size_t __size = __result->size();
+          std::vector<GenerationStats> __vector;
+          __vector.reserve(__size);
+          for (size_t __i = 0; __i < __size; __i++) {
+            auto __element = __result->getElement(__i);
+            __vector.push_back(__element->toCpp());
+          }
+          return __vector;
+        }());
+      });
+      __result->cthis()->addOnRejectedListener([=](const jni::alias_ref<jni::JThrowable>& __throwable) {
+        jni::JniException __jniError(__throwable);
+        __promise->reject(std::make_exception_ptr(__jniError));
+      });
+      return __promise;
+    }();
   }
   std::vector<Message> JHybridLiteRTLMSpec::getHistory() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JMessage>>()>("getHistory");

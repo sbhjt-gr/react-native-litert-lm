@@ -21,7 +21,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JMemoryUsage final: public jni::JavaClass<JMemoryUsage> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/MemoryUsage;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/MemoryUsage;";
 
   public:
     /**

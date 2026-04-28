@@ -24,7 +24,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JLLMConfig final: public jni::JavaClass<JLLMConfig> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/LLMConfig;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/LLMConfig;";
 
   public:
     /**

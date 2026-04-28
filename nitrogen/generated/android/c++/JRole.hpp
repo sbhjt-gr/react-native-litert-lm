@@ -19,7 +19,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JRole final: public jni::JavaClass<JRole> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Role;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Role;";
 
   public:
     /**

@@ -66,7 +66,7 @@ abstract class HybridLiteRTLMSpec: HybridObject() {
     val __result = sendMessageAsync(message, onToken)
     return __result
   }
-
+  
   @DoNotStrip
   @Keep
   abstract fun runBenchmark(prompt: String, warmupRuns: Double, benchmarkRuns: Double): Promise<Array<GenerationStats>>

@@ -294,12 +294,24 @@ index ea17f68..96d2888 100644
 @@ -153,7 +153,7 @@ class PromptTemplate {
    }
  
-  private:
+ private:
 -  rust::Box<MinijinjaTemplate> minijinja_template_;
 +  std::string template_source_;
  
    // The capabilities of the prompt template. Auto inferred from the template
    // source string.
+diff --git a/runtime/components/BUILD b/runtime/components/BUILD
+index 245f720..49101d9 100644
+--- a/runtime/components/BUILD
++++ b/runtime/components/BUILD
+@@ -557,8 +557,6 @@ cc_library(
+         "@com_google_absl//absl/strings:string_view",
+         "@com_google_absl//absl/time",
+         "@nlohmann_json//:json",
+-        "//runtime/components/rust:minijinja_template_cpp",
+-        "@com_googlesource_code_re2//:re2",
+     ],
+ )
 diff --git a/runtime/core/engine_impl.cc b/runtime/core/engine_impl.cc
 index fa2bdff..e180b2b 100644
 --- a/runtime/core/engine_impl.cc

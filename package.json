@@ -67,7 +67,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
     "prepack": "npm run build",
-    "specs": "npx nitrogen",
+    "specs": "nitrogen",
     "clean": "rm -rf lib android/build ios/build ios/Frameworks nitrogen/generated",
     "download-frameworks": "scripts/download-ios-frameworks.sh",
     "android": "expo run:android",
@@ -78,6 +78,7 @@
   "devDependencies": {
     "@expo/config-plugins": "~55.0.0",
     "@types/react": "~19.2.10",
+    "nitrogen": "0.35.0",
     "release-it": "^19.2.4",
     "typescript": "^5.0.0"
   },

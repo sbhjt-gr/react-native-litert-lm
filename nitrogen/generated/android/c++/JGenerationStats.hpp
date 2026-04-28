@@ -21,7 +21,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JGenerationStats final: public jni::JavaClass<JGenerationStats> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/GenerationStats;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/GenerationStats;";
 
   public:
     /**

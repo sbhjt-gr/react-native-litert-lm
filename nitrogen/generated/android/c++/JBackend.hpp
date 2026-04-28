@@ -19,7 +19,7 @@ namespace margelo::nitro::litertlm {
    */
   struct JBackend final: public jni::JavaClass<JBackend> {
   public:
-    static constexpr auto kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Backend;";
+    static auto constexpr kJavaDescriptor = "Lcom/margelo/nitro/dev/litert/litertlm/Backend;";
 
   public:
     /**
