@@ -411,32 +411,55 @@ std::string HybridLiteRTLM::buildAudioMessageJson(const std::string& text, const
          "]}";
 }
 
+static const char* kControlTokens[] = {
+  "<end_of_turn>",
+  "<start_of_turn>model",
+  "<start_of_turn>user",
+  "<start_of_turn>",
+  "<eos>",
+};
+
 /**
- * Strip Gemma / LiteRT-LM control tokens from model output.
- * The iOS C API returns raw model text including stop/turn markers
- * that the Android Kotlin SDK strips automatically.
+ * Strip control tokens from model output, preserving whitespace.
+ * Streaming chunks can include meaningful leading spaces that should not be
+ * trimmed until the full response is complete.
  */
 static std::string stripControlTokens(const std::string& text) {
-  static const char* tokens[] = {
-    "<end_of_turn>",
-    "<start_of_turn>model",
-    "<start_of_turn>user",
-    "<start_of_turn>",
-    "<eos>",
-  };
   std::string result = text;
-  for (auto* tok : tokens) {
+  for (auto* tok : kControlTokens) {
     std::string t(tok);
     size_t pos;
     while ((pos = result.find(t)) != std::string::npos) {
       result.erase(pos, t.length());
     }
   }
-  // Trim leading/trailing whitespace
-  size_t start = result.find_first_not_of(" \t\n\r");
-  if (start == std::string::npos) return "";
-  size_t end = result.find_last_not_of(" \t\n\r");
-  return result.substr(start, end - start + 1);
+  return result;
+}
+
+static size_t safeEmitLength(const std::string& text) {
+  size_t lastAngle = text.rfind('<');
+  if (lastAngle == std::string::npos) {
+    return text.length();
+  }
+
+  std::string suffix = text.substr(lastAngle);
+  for (auto* tok : kControlTokens) {
+    std::string token(tok);
+    if (suffix.length() < token.length() && token.compare(0, suffix.length(), suffix) == 0) {
+      return lastAngle;
+    }
+  }
+
+  return text.length();
+}
+
+static std::string trimWhitespace(const std::string& text) {
+  size_t start = text.find_first_not_of(" \t\n\r");
+  if (start == std::string::npos) {
+    return "";
+  }
+  size_t end = text.find_last_not_of(" \t\n\r");
+  return text.substr(start, end - start + 1);
 }
 
 std::string HybridLiteRTLM::extractTextFromResponse(const std::string& jsonResponse) {
@@ -723,9 +746,11 @@ std::string HybridLiteRTLM::sendMessageInternal(const std::string& message) {
   
   const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
-    result = extractTextFromResponse(std::string(responseStr));
+    result = trimWhitespace(extractTextFromResponse(std::string(responseStr)));
   }
   deleteJsonResponseCompat(response);
+  lastStats_.completionTokens = std::max(static_cast<double>(result.size()) / 4.0, 1.0);
+  lastStats_.timeToFirstToken = 0.0;
   
   const auto& api = getLiteRtApi();
   if (api.hasBenchmarkApi()) {
@@ -786,6 +811,23 @@ void HybridLiteRTLM::streamCallbackFn(void* callback_data, const char* chunk,
       ctx->lastStats->totalTokens = ctx->lastStats->promptTokens + ctx->lastStats->completionTokens;
       ctx->lastStats->totalTime = durationMs;
       ctx->lastStats->tokensPerSecond = (ctx->lastStats->completionTokens / durationMs) * 1000.0;
+      ctx->lastStats->timeToFirstToken = 0.0;
+    }
+
+    std::string cleaned = stripControlTokens(ctx->rawResponse);
+    size_t start = cleaned.find_first_not_of(" \t\n\r");
+    if (start != std::string::npos) {
+      cleaned = cleaned.substr(start);
+      if (!ctx->userMessage.empty() && cleaned.find(ctx->userMessage) == 0) {
+        cleaned = cleaned.substr(ctx->userMessage.length());
+        size_t nextStart = cleaned.find_first_not_of(" \t\n\r");
+        cleaned = (nextStart != std::string::npos) ? cleaned.substr(nextStart) : "";
+      }
+      if (cleaned.length() > ctx->lastEmittedLength) {
+        std::string remaining = cleaned.substr(ctx->lastEmittedLength);
+        ctx->onToken(remaining, false);
+      }
+      ctx->fullResponse = trimWhitespace(cleaned);
     }
     
     // Update history (thread-safe)
@@ -802,12 +844,39 @@ void HybridLiteRTLM::streamCallbackFn(void* callback_data, const char* chunk,
   
   if (chunk) {
     std::string token(chunk);
-    // Filter out Gemma control tokens from streamed chunks
-    std::string cleaned = stripControlTokens(token);
-    ctx->fullResponse += cleaned;
-    ctx->tokenCount++;
-    if (!cleaned.empty()) {
-      ctx->onToken(cleaned, false);
+
+    std::string raw;
+    if (token.size() > 2 && token[0] == '{' && token.find("\"role\"") != std::string::npos) {
+      raw = HybridLiteRTLM::extractTextFromResponse(token);
+    } else {
+      raw = token;
+    }
+
+    ctx->rawResponse += raw;
+    std::string cleaned = stripControlTokens(ctx->rawResponse);
+
+    size_t start = cleaned.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+      return;
+    }
+    cleaned = cleaned.substr(start);
+
+    if (!ctx->userMessage.empty() && cleaned.find(ctx->userMessage) == 0) {
+      cleaned = cleaned.substr(ctx->userMessage.length());
+      size_t nextStart = cleaned.find_first_not_of(" \t\n\r");
+      if (nextStart == std::string::npos) {
+        return;
+      }
+      cleaned = cleaned.substr(nextStart);
+    }
+
+    size_t safe = safeEmitLength(cleaned);
+    if (safe > ctx->lastEmittedLength) {
+      std::string newText = cleaned.substr(ctx->lastEmittedLength, safe - ctx->lastEmittedLength);
+      ctx->fullResponse = cleaned.substr(0, safe);
+      ctx->lastEmittedLength = safe;
+      ctx->tokenCount++;
+      ctx->onToken(newText, false);
     }
   }
 }
@@ -823,7 +892,9 @@ void HybridLiteRTLM::sendMessageAsync(
   // Capture shared state safely — use unique_ptr to prevent leaks
   auto ctxOwner = std::make_unique<StreamContext>();
   ctxOwner->onToken = std::move(onTokenCopy);
+  ctxOwner->rawResponse = "";
   ctxOwner->fullResponse = "";
+  ctxOwner->lastEmittedLength = 0;
   ctxOwner->history = &history_;
   ctxOwner->historyMutex = &mutex_;
   ctxOwner->userMessage = messageCopy;
@@ -964,7 +1035,7 @@ std::string HybridLiteRTLM::sendMessageWithImageInternal(
   
   const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
-    result = extractTextFromResponse(std::string(responseStr));
+    result = trimWhitespace(extractTextFromResponse(std::string(responseStr)));
   }
   deleteJsonResponseCompat(response);
 #else
@@ -1032,7 +1103,7 @@ std::string HybridLiteRTLM::sendMessageWithAudioInternal(
   
   const char* responseStr = getJsonResponseStringCompat(response);
   if (responseStr) {
-    result = extractTextFromResponse(std::string(responseStr));
+    result = trimWhitespace(extractTextFromResponse(std::string(responseStr)));
   }
   deleteJsonResponseCompat(response);
 #else
